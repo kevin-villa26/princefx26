@@ -381,18 +381,20 @@
 
     sessionStorage.setItem('pkce_verifier', verifier);
 
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: '32P7P7Js60xbi0ISjpAyK',
-      redirect_uri: 'https://princefx26.netlify.app/callback',
-      scope: 'trade account_management',
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-      state: crypto.randomUUID()
-    });
+    // Build URL manually to ensure scope uses %20 (not +) as required by Deriv
+    const state = crypto.randomUUID();
+    const authUrl =
+      'https://auth.deriv.com/oauth2/auth' +
+      '?response_type=code' +
+      '&client_id=32P7P7Js60xbi0ISjpAyK' +
+      '&redirect_uri=' + encodeURIComponent('https://princefx26.netlify.app/callback') +
+      '&scope=trade%20account_management' +
+      '&state=' + encodeURIComponent(state) +
+      '&code_challenge=' + encodeURIComponent(challenge) +
+      '&code_challenge_method=S256';
 
-    // Try new OAuth first (home.deriv.com)
-    window.location.href = `https://oauth.deriv.com/oauth2/authorize?${params}`;
+    sessionStorage.setItem('oauth_state', state);
+    window.location.href = authUrl;
   }
 </script>
 </body>
