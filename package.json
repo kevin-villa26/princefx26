@@ -1,0 +1,16 @@
+{
+  "name": "princefx-pro",
+  "version": "3.2.1",
+  "description": "Prince FX — Professional Digit Match Analysis Tool",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Static site - no build required'"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}
