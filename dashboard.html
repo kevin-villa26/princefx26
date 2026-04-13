@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prince FX — Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-logo">
+    <span class="crown-icon">👑</span>
+    <div>
+      <div class="logo-text">PRINCE FX</div>
+      <div class="logo-sub">DIGIT MATCH PREDICTOR PRO</div>
+    </div>
+  </div>
+  <div class="nav-center">
+    <div class="engine-badge">
+      <span class="badge-dot"></span>
+      NEURAL ENGINE v3.2.1
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="account-info" id="accountInfo">
+      <div class="acct-id" id="acctId">—</div>
+      <div class="acct-bal" id="acctBal">$0.00</div>
+    </div>
+    <button class="btn-logout" onclick="logout()">⏻ LOGOUT</button>
+  </div>
+</nav>
+
+<!-- MAIN LAYOUT -->
+<main class="dashboard">
+
+  <!-- ENGINE INFO PANEL -->
+  <section class="engine-panel">
+    <div class="engine-header">
+      <div class="engine-icon">🧠</div>
+      <div>
+        <div class="engine-title">Engine</div>
+        <div class="engine-desc">AI-powered volatility index analysis system</div>
+      </div>
+    </div>
+    <p class="engine-body">
+      Our advanced machine learning algorithms analyze real-time market data to predict the last digit of volatility indices. The system processes thousands of data points per second to deliver accurate predictions.
+    </p>
+    <div class="engine-stats">
+      <div class="stat-box">
+        <div class="stat-label">Algorithm</div>
+        <div class="stat-val">🔷 Neural Network</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Data Points</div>
+        <div class="stat-val">📈 50K+/sec</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Latency</div>
+        <div class="stat-val">⚡ &lt;10ms</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Model</div>
+        <div class="stat-val">🧬 v3.2.1</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ANALYZER GRID -->
+  <section class="analyzers-grid" id="analyzersGrid">
+    <!-- Cards injected by JS -->
+  </section>
+
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
