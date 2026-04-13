@@ -2,7 +2,7 @@
 // Exchanges OAuth authorization code for access token (PKCE flow)
 // Must run server-side to avoid CORS and keep client_secret secure
 
-const DERIV_TOKEN_ENDPOINT = 'https://oauth.deriv.com/oauth2/token';
+const DERIV_TOKEN_ENDPOINT = 'https://auth.deriv.com/oauth2/token';
 const CLIENT_ID = '32P7P7Js60xbi0ISjpAyK';
 
 exports.handler = async (event) => {
