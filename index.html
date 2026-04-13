@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prince FX — Digit Match Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #FFD700;
+      --gold-dim: #B8960C;
+      --gold-glow: rgba(255, 215, 0, 0.3);
+      --bg-dark: #050810;
+      --bg-card: #0A0F1E;
+      --bg-card2: #0D1427;
+      --border: rgba(255, 215, 0, 0.15);
+      --text: #E8EAF0;
+      --text-dim: #6B7280;
+      --success: #10B981;
+      --danger: #EF4444;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg-dark);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,215,0,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,215,0,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 50% 30%, rgba(255,215,0,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+      animation: pulseGlow 6s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      background: rgba(5, 8, 16, 0.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Orbitron', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 2px;
+    }
+
+    .nav-logo span {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      font-weight: 400;
+      font-family: 'Rajdhani', sans-serif;
+    }
+
+    .crown-icon {
+      font-size: 18px;
+      filter: drop-shadow(0 0 8px var(--gold));
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      color: #EF4444;
+      font-family: 'Share Tech Mono', monospace;
+      letter-spacing: 1px;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #EF4444;
+      animation: blink 1.5s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 20px 40px;
+    }
+
+    .login-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 0 60px rgba(255,215,0,0.05),
+        0 24px 80px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,215,0,0.1);
+    }
+
+    .card-glow {
+      position: absolute;
+      top: -60px; left: 50%;
+      transform: translateX(-50%);
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(255,215,0,0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .crown-wrap {
+      text-align: center;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .crown-big {
+      font-size: 56px;
+      filter: drop-shadow(0 0 20px var(--gold)) drop-shadow(0 0 40px rgba(255,215,0,0.4));
+      animation: crownFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes crownFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .brand-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--gold);
+      text-align: center;
+      letter-spacing: 4px;
+      text-shadow: 0 0 30px rgba(255,215,0,0.5);
+      margin-bottom: 6px;
+    }
+
+    .brand-sub {
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--text-dim);
+      font-family: 'Share Tech Mono', monospace;
+      margin-bottom: 36px;
+    }
+
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 36px;
+    }
+
+    .feature-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: rgba(255,215,0,0.03);
+      border: 1px solid rgba(255,215,0,0.07);
+      border-radius: 10px;
+      transition: all 0.3s;
+    }
+
+    .feature-row:hover {
+      background: rgba(255,215,0,0.06);
+      border-color: rgba(255,215,0,0.15);
+      transform: translateX(4px);
+    }
+
+    .feature-icon {
+      font-size: 20px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,215,0,0.08);
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .feature-text {
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #FFD700 0%, #F59E0B 50%, #D97706 100%);
+      border: none;
+      border-radius: 12px;
+      font-family: 'Orbitron', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #050810;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      box-shadow: 0 4px 24px rgba(255,215,0,0.3);
+    }
+
+    .btn-login::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn-login:hover::before { left: 100%; }
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(255,215,0,0.4);
+    }
+    .btn-login:active { transform: translateY(0); }
+
+    .btn-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .version-tag {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    @media (max-width: 520px) {
+      .login-card { padding: 36px 24px; }
+      .brand-title { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-logo">
+    <span class="crown-icon">👑</span>
+    PRINCE FX
+    <span>· DIGIT MATCH PREDICTOR · BY KEVIN VILLAMAR</span>
+  </div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    DESCONECTADO
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="login-card">
+    <div class="card-glow"></div>
+
+    <div class="crown-wrap">
+      <div class="crown-big">👑</div>
+    </div>
+
+    <h1 class="brand-title">PRINCE FX</h1>
+    <p class="brand-sub">PROFESSIONAL DIGIT MATCH ANALYSIS TOOL</p>
+
+    <div class="features">
+      <div class="feature-row">
+        <div class="feature-icon">📊</div>
+        <span class="feature-text">Análisis de mercado en tiempo real</span>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🤖</div>
+        <span class="feature-text">Algoritmos avanzados de comparación de dígitos</span>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">✅</div>
+        <span class="feature-text">Información profesional sobre operaciones bursátiles</span>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🎯</div>
+        <span class="feature-text">Porcentaje de confianza por predicción</span>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">⚡</div>
+        <span class="feature-text">Sincronización automática con tu bot</span>
+      </div>
+    </div>
+
+    <button class="btn-login" onclick="loginWithDeriv()">
+      <div class="btn-inner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+        Login with Deriv
+      </div>
+    </button>
+
+    <div class="version-tag">PRINCE FX PRO v3.2.1 · Neural Engine · 50K+ data/sec</div>
+  </div>
+</section>
+
+<script>
+  // PKCE helpers
+  function generateCodeVerifier() {
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    return btoa(String.fromCharCode(...array))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function generateCodeChallenge(verifier) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function loginWithDeriv() {
+    const btn = document.querySelector('.btn-login');
+    btn.innerHTML = '<div class="btn-inner"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Connecting...</div>';
+    btn.disabled = true;
+
+    const verifier = generateCodeVerifier();
+    const challenge = await generateCodeChallenge(verifier);
+
+    sessionStorage.setItem('pkce_verifier', verifier);
+
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: '32P7P7Js60xbi0ISjpAyK',
+      redirect_uri: 'https://princefx26.netlify.app/callback',
+      scope: 'trade account_management',
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      state: crypto.randomUUID()
+    });
+
+    // Try new OAuth first (home.deriv.com)
+    window.location.href = `https://oauth.deriv.com/oauth2/authorize?${params}`;
+  }
+</script>
+</body>
+</html>
