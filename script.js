@@ -1,24 +1,27 @@
 /* ================================================
    PRINCE FX PRO — Neural Digit Match Engine v3.2.1
    ================================================
-   KEY FIX: Ticks are PUBLIC on Deriv WebSocket —
-   we do NOT need to authorize to receive them.
-   We subscribe directly, collect digits, and run
-   the prediction algorithm independently.
-   Account info is fetched via a separate authorized
-   WebSocket connection.
+   TIMING FLOW (per cycle):
+   ┌─────────────────────────────────────────────┐
+   │  20s → Digit REVEALED  + bar FULL           │
+   │  19s → bar starts emptying, digit shown     │
+   │  ...                                        │
+   │   3s → bot config window starts             │
+   │   2s → bot config window                    │
+   │   1s → bar EMPTY → "Processing algorithm..." │
+   │   0s → new prediction calculated            │
+   │  20s → new digit REVEALED + bar FULL again  │
+   └─────────────────────────────────────────────┘
    ================================================ */
 'use strict';
 
 // ── CONFIG ────────────────────────────────────────
 const CFG = {
-  // Public app_id — ONLY for tick subscriptions (no auth needed)
   WS_TICKS:   'wss://ws.derivws.com/websockets/v3?app_id=1089',
-  // Same endpoint for authorized calls (balance/account)
   WS_ACCOUNT: 'wss://ws.derivws.com/websockets/v3?app_id=1089',
-  CYCLE:       20,    // seconds per prediction cycle
-  TICK_BUF:   100,   // ticks kept per index
-  INIT_MS:   3000,   // "Initializing..." duration on first login
+  CYCLE:      20,     // total seconds per cycle
+  TICK_BUF:   100,    // ticks kept per index for prediction
+  INIT_MS:    3000,   // "Initializing..." shown for 3s on first login
   INDICES: [
     { id:'v10', sym:'1HZ10V', name:'Volatility 10 (1s)', cls:'v10', icon:'〜' },
     { id:'v25', sym:'1HZ25V', name:'Volatility 25 (1s)', cls:'v25', icon:'〰' },
@@ -29,12 +32,12 @@ const CFG = {
 
 // ── STATE ─────────────────────────────────────────
 const ST = {
-  token:       null,
-  wsT:         null,   // tick WebSocket (public)
-  wsA:         null,   // account WebSocket (authorized)
-  rtimer:      null,   // reconnect timer
-  initDone:    false,  // 3s init phase complete
-  analyzers:   {},     // symbol → analyzer object
+  token:     null,
+  wsT:       null,   // public tick WebSocket
+  wsA:       null,   // authorized account WebSocket
+  rtimer:    null,   // reconnect timer
+  initDone:  false,  // 3s init phase complete flag
+  analyzers: {},     // symbol → analyzer object
 };
 
 function mkAz(sym) {
@@ -43,8 +46,8 @@ function mkAz(sym) {
     ticks:        [],
     countdown:    CFG.CYCLE,
     timer:        null,
-    pred:         null,   // { digit, confidence }
-    phase:        'init', // init|processing|predicting
+    pred:         null,    // { digit, confidence }
+    phase:        'init',  // init|predicting|processing
     cycleStarted: false,
   };
 }
@@ -58,30 +61,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   buildUI();
 
-  // Show initializing on all cards immediately
+  // Show "Initializing prediction model..." on all cards immediately
   CFG.INDICES.forEach(i => {
     setBox(i.id, tplInit());
     setCD(i.id, '—');
     setPB(i.id, 0);
   });
 
-  // Step 1: connect public tick WebSocket (no auth needed)
+  // Connect tick stream (public — no auth needed)
   connectTickWS();
 
-  // Step 2: connect account WebSocket (authorized) for balance/username
+  // Connect account stream (for balance + username)
   connectAccountWS();
 
-  // Step 3: after INIT_MS, mark init done & start any cycles that have ticks
+  // After INIT_MS, mark init complete and start cycles
   setTimeout(() => {
     ST.initDone = true;
     CFG.INDICES.forEach(i => {
       const az = ST.analyzers[i.sym];
-      if (az && !az.cycleStarted && az.ticks.length >= 5) {
+      if (az && !az.cycleStarted) {
         az.cycleStarted = true;
         startCycle(i.sym);
-      } else if (az && !az.cycleStarted) {
-        // Not enough ticks yet — show processing, will start on next tick
-        setBox(i.id, tplProcessing());
       }
     });
   }, CFG.INIT_MS);
@@ -110,23 +110,20 @@ function buildUI() {
         <div class="progress-wrap">
           <div class="progress-fill" id="pb-${i.id}" style="width:0%"></div>
         </div>
-        <div class="prediction-box" id="pbox-${i.id}">
-          ${tplInit()}
-        </div>
+        <div class="prediction-box" id="pbox-${i.id}">${tplInit()}</div>
       </div>`);
   });
 }
 
-// ── TICK WEBSOCKET (PUBLIC — no authorize needed) ─
+// ── TICK WEBSOCKET (public ticks) ─────────────────
 function connectTickWS() {
   if (ST.wsT) { try { ST.wsT.close(); } catch {} }
   ST.wsT = new WebSocket(CFG.WS_TICKS);
 
   ST.wsT.onopen = () => {
-    // Subscribe to all 4 indices immediately — no auth required for public ticks
-    CFG.INDICES.forEach(i => {
-      ST.wsT.send(JSON.stringify({ ticks: i.sym, subscribe: 1 }));
-    });
+    CFG.INDICES.forEach(i =>
+      ST.wsT.send(JSON.stringify({ ticks: i.sym, subscribe: 1 }))
+    );
   };
 
   ST.wsT.onmessage = (e) => {
@@ -140,32 +137,25 @@ function connectTickWS() {
     if (ST.rtimer) return;
     ST.rtimer = setTimeout(() => { ST.rtimer = null; connectTickWS(); }, 3000);
   };
-
   ST.wsT.onerror = () => {};
 }
 
-// ── ACCOUNT WEBSOCKET (AUTHORIZED — for balance/name)
+// ── ACCOUNT WEBSOCKET (for username/balance) ──────
 function connectAccountWS() {
   if (ST.wsA) { try { ST.wsA.close(); } catch {} }
   ST.wsA = new WebSocket(CFG.WS_ACCOUNT);
-
-  ST.wsA.onopen = () => {
-    ST.wsA.send(JSON.stringify({ authorize: ST.token }));
-  };
-
+  ST.wsA.onopen    = () => ST.wsA.send(JSON.stringify({ authorize: ST.token }));
   ST.wsA.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
       if (msg.msg_type === 'authorize' && !msg.error) onAuthorized(msg.authorize);
-      // Silently ignore auth errors — ticks still work
     } catch {}
   };
-
   ST.wsA.onerror = () => {};
   ST.wsA.onclose = () => {};
 }
 
-// ── ON AUTHORIZED (account info only) ────────────
+// ── ON AUTHORIZED ─────────────────────────────────
 function onAuthorized(auth) {
   const loginid  = auth.loginid  || '—';
   const currency = auth.currency || '';
@@ -175,7 +165,7 @@ function onAuthorized(auth) {
   const elBal  = document.getElementById('userBal');
   const elAvtr = document.getElementById('userAvatar');
   if (elName) elName.textContent = loginid;
-  if (elBal)  elBal.textContent  = `${currency} ${balance}`;
+  if (elBal)  elBal.textContent  = currency + ' ' + balance;
   if (elAvtr) elAvtr.textContent = loginid.charAt(0).toUpperCase();
 }
 
@@ -184,27 +174,141 @@ function onTick(tick) {
   const az = ST.analyzers[tick.symbol];
   if (!az) return;
 
-  // Extract last digit from price (e.g. 12345.67 → 7)
+  // Extract last digit of price
   const str   = tick.quote.toFixed(2);
   const digit = parseInt(str[str.length - 1], 10);
   az.ticks.push(digit);
   if (az.ticks.length > CFG.TICK_BUF) az.ticks.shift();
 
-  // Once init phase done & enough ticks: start cycle
-  if (ST.initDone && !az.cycleStarted && az.ticks.length >= 5) {
+  // If init phase already done but cycle not yet started, start it now
+  if (ST.initDone && !az.cycleStarted) {
     az.cycleStarted = true;
     startCycle(tick.symbol);
   }
 }
 
+// ══════════════════════════════════════════════════
+//  CYCLE TIMING LOGIC
+//
+//  Each cycle = 20 seconds total.
+//
+//  Second 20 (cycle start):
+//    → Prediction digit is REVEALED immediately
+//    → Progress bar is FULL (100%)
+//    → Countdown shows 20s
+//
+//  Seconds 19 → 2:
+//    → Digit stays visible
+//    → Confidence drifts slightly each second
+//    → Progress bar drains left→right (100% → ~5%)
+//    → Countdown ticks down
+//
+//  Second 1 (last second):
+//    → Progress bar hits 0%
+//    → "Processing algorithm..." appears
+//    → New prediction is calculated in background
+//
+//  Next second (back to 20):
+//    → New digit revealed, bar fills to 100%
+//    → Cycle repeats
+//
+//  BOT WINDOW: 3s → 1s = 3-second window to configure your
+//  bot (XML setup) before it executes the trade at second 0.
+// ══════════════════════════════════════════════════
+function startCycle(sym) {
+  const az  = ST.analyzers[sym];
+  const idx = CFG.INDICES.find(i => i.sym === sym);
+  if (!az || !idx) return;
+
+  if (az.timer) { clearInterval(az.timer); az.timer = null; }
+
+  // ── Step 1: Calculate prediction NOW, reveal at 20s ──
+  az.pred      = predict(az.ticks);
+  az.phase     = 'predicting';
+  az.countdown = CFG.CYCLE; // 20
+
+  // Show digit immediately at 20s, bar is FULL
+  renderPred(idx.id, az.pred, true);
+  setCD(idx.id, az.countdown + 's');
+  setPB(idx.id, 100); // bar FULL at 20s
+
+  // ── Step 2: Countdown tick every second ──
+  az.timer = setInterval(() => {
+    az.countdown--;
+
+    if (az.countdown <= 0) {
+      // ── End of cycle: show processing, calc next prediction ──
+      az.phase = 'processing';
+      setBox(idx.id, tplProcessing());
+      setCD(idx.id, CFG.CYCLE + 's');
+      setPB(idx.id, 100); // bar resets to FULL for next cycle
+      az.countdown = CFG.CYCLE;
+
+      // Calculate new prediction then reveal it
+      // Small delay so "Processing algorithm..." is visible briefly
+      setTimeout(() => {
+        az.pred  = predict(az.ticks);
+        az.phase = 'predicting';
+        renderPred(idx.id, az.pred, true);
+        setCD(idx.id, az.countdown + 's');
+        setPB(idx.id, 100);
+      }, 1200);
+
+      return; // skip the normal countdown update below
+    }
+
+    // ── Normal tick: update countdown + bar ──
+    setCD(idx.id, az.countdown + 's');
+
+    // Bar drains from 100% (at 20s) to ~0% (at 1s)
+    // Formula: pct = ((countdown - 1) / (CYCLE - 1)) * 100
+    // At 19s → pct = 18/19 * 100 ≈ 94.7%
+    // At  2s → pct =  1/19 * 100 ≈  5.3%
+    // At  1s → pct =  0/19 * 100 =    0%
+    const pct = ((az.countdown - 1) / (CFG.CYCLE - 1)) * 100;
+    setPB(idx.id, pct);
+
+    // ── Show "Processing algorithm..." at exactly 1s ──
+    if (az.countdown === 1) {
+      az.phase = 'processing';
+      setBox(idx.id, tplProcessing());
+    }
+
+    // ── Live confidence drift (seconds 19 → 2) ──
+    if (az.phase === 'predicting' && az.pred && az.countdown > 1) {
+      az.pred.confidence = parseFloat(
+        Math.min(97, Math.max(61,
+          az.pred.confidence + (Math.random() - 0.42) * 2.4
+        )).toFixed(1)
+      );
+      updateConf(idx.id, az.pred.confidence);
+    }
+
+  }, 1000);
+}
+
 // ── PREDICTION ALGORITHM ──────────────────────────
 /*
-  4-Layer Neural Weighting:
-  L1 – Exponential recency weight  (recent ticks weighted higher)
-  L2 – Momentum ratio              (last 10 vs last 30 ticks)
-  L3 – Anti-frequency bias         (underrepresented digits boosted)
-  L4 – Repetition gap              (digits absent longer get boost)
-  → Combined via softmax → highest prob digit + scaled confidence %
+  ┌─────────────────────────────────────────────────┐
+  │         4-LAYER NEURAL WEIGHTING ENGINE         │
+  ├──────────────┬──────────────────────────────────┤
+  │ Layer 1 (40%)│ Recency Weight                   │
+  │              │ Recent ticks scored exponentially │
+  │              │ higher than older ones            │
+  ├──────────────┼──────────────────────────────────┤
+  │ Layer 2 (25%)│ Momentum Ratio                   │
+  │              │ Last 10 ticks vs last 30 ticks    │
+  │              │ Detects trend in digit frequency  │
+  ├──────────────┼──────────────────────────────────┤
+  │ Layer 3 (20%)│ Anti-Frequency Bias              │
+  │              │ Over-appearing digits penalized   │
+  │              │ Under-appearing digits boosted    │
+  ├──────────────┼──────────────────────────────────┤
+  │ Layer 4 (15%)│ Repetition Gap                   │
+  │              │ Digits absent longest get boost   │
+  │              │ (mean-reversion tendency)         │
+  └──────────────┴──────────────────────────────────┘
+  Output: softmax probability → highest digit + confidence %
 */
 function predict(ticks) {
   if (ticks.length < 5) {
@@ -216,32 +320,34 @@ function predict(ticks) {
 
   const N = ticks.length;
 
-  // L1: recency-weighted frequency
+  // L1: exponential recency weight
   const recency = new Array(10).fill(0);
   ticks.forEach((d, i) => { recency[d] += Math.pow(1.045, i); });
 
-  // L2: momentum
+  // L2: momentum (last 10 vs last 30)
   const r10 = new Array(10).fill(0);
   const r30 = new Array(10).fill(0);
   ticks.slice(-10).forEach(d => r10[d]++);
   ticks.slice(-30).forEach(d => r30[d]++);
   const momentum = r10.map((v, d) => v / Math.max(r30[d] / 3, 0.001));
 
-  // L3: anti-bias
+  // L3: anti-frequency bias
   const freq = new Array(10).fill(0);
   ticks.forEach(d => freq[d]++);
-  const meanF = N / 10;
+  const meanF   = N / 10;
   const antiBias = freq.map(f => {
     const dev = f - meanF;
     return dev > 0 ? Math.max(0.08, 1 - dev * 0.06) : 1 + Math.abs(dev) * 0.045;
   });
 
-  // L4: gap boost
+  // L4: repetition gap boost
   const lastSeen = new Array(10).fill(-1);
   ticks.forEach((d, i) => { lastSeen[d] = i; });
-  const gapBoost = lastSeen.map(l => 1 + Math.min(l === -1 ? N : N - 1 - l, 15) * 0.012);
+  const gapBoost = lastSeen.map(l =>
+    1 + Math.min(l === -1 ? N : N - 1 - l, 15) * 0.012
+  );
 
-  // Combine
+  // Weighted combine
   const scores = new Array(10).fill(0).map((_, d) =>
     recency[d]  * 0.40 +
     momentum[d] * 3    * 0.25 +
@@ -249,7 +355,7 @@ function predict(ticks) {
     gapBoost[d] * 2    * 0.15
   );
 
-  // Softmax
+  // Softmax normalization
   const maxS = Math.max(...scores);
   const exps  = scores.map(s => Math.exp(s - maxS));
   const sumE  = exps.reduce((a, b) => a + b, 0);
@@ -263,61 +369,6 @@ function predict(ticks) {
   return { digit: predDigit, confidence: conf };
 }
 
-// ── CYCLE MANAGER ─────────────────────────────────
-function startCycle(sym) {
-  const az  = ST.analyzers[sym];
-  const idx = CFG.INDICES.find(i => i.sym === sym);
-  if (!az || !idx) return;
-
-  if (az.timer) { clearInterval(az.timer); az.timer = null; }
-
-  az.countdown = CFG.CYCLE;
-
-  // Show "Processing algorithm..." for 1.5s then reveal digit
-  setBox(idx.id, tplProcessing());
-  setCD(idx.id, az.countdown + 's');
-  setPB(idx.id, 0);
-
-  setTimeout(() => {
-    az.pred  = predict(az.ticks);
-    az.phase = 'predicting';
-    renderPred(idx.id, az.pred, true);
-  }, 1500);
-
-  // Countdown tick — every 1 second
-  az.timer = setInterval(() => {
-    az.countdown--;
-    setCD(idx.id, az.countdown + 's');
-    setPB(idx.id, ((CFG.CYCLE - az.countdown) / (CFG.CYCLE - 1)) * 100);
-
-    // Live confidence drift each second
-    if (az.phase === 'predicting' && az.pred) {
-      az.pred.confidence = parseFloat(
-        Math.min(97, Math.max(61,
-          az.pred.confidence + (Math.random() - 0.42) * 2.6
-        )).toFixed(1)
-      );
-      updateConf(idx.id, az.pred.confidence);
-    }
-
-    // Cycle ends
-    if (az.countdown <= 0) {
-      az.countdown = CFG.CYCLE;
-      az.phase = 'processing';
-
-      setBox(idx.id, tplProcessing());
-      setCD(idx.id, az.countdown + 's');
-      setPB(idx.id, 0);
-
-      setTimeout(() => {
-        az.pred  = predict(az.ticks);
-        az.phase = 'predicting';
-        renderPred(idx.id, az.pred, true);
-      }, 1500);
-    }
-  }, 1000);
-}
-
 // ── UI HELPERS ────────────────────────────────────
 function setBox(id, html) {
   const el = document.getElementById('pbox-' + id);
@@ -329,6 +380,7 @@ function setCD(id, txt) {
   if (el) el.textContent = txt;
 }
 
+// pct: 0 = empty, 100 = full
 function setPB(id, pct) {
   const el = document.getElementById('pb-' + id);
   if (el) el.style.width = Math.max(0, Math.min(100, pct)) + '%';
@@ -381,10 +433,13 @@ function tplProcessing() {
 function logout() {
   try { sessionStorage.clear(); } catch {}
   try {
-    ['pf_token','pf_accounts','pf_pkce_verifier'].forEach(k => localStorage.removeItem(k));
+    ['pf_token','pf_accounts','pf_pkce_verifier']
+      .forEach(k => localStorage.removeItem(k));
   } catch {}
   [ST.wsT, ST.wsA].forEach(ws => { if (ws) try { ws.close(); } catch {} });
-  Object.values(ST.analyzers).forEach(az => { if (az.timer) clearInterval(az.timer); });
+  Object.values(ST.analyzers).forEach(az => {
+    if (az.timer) clearInterval(az.timer);
+  });
   window.location.replace('/');
 }
 window.logout = logout;
