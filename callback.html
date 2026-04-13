@@ -27,8 +27,7 @@
     }
     body::before {
       content: '';
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background-image:
         linear-gradient(rgba(255,215,0,0.03) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,215,0,0.03) 1px, transparent 1px);
@@ -36,96 +35,43 @@
       pointer-events: none;
     }
     .auth-box {
-      text-align: center;
-      position: relative;
-      z-index: 1;
-      padding: 40px;
+      text-align: center; position: relative; z-index: 1;
+      padding: 40px 24px; max-width: 420px; width: 100%;
     }
     .crown {
-      font-size: 48px;
-      filter: drop-shadow(0 0 20px var(--gold));
-      margin-bottom: 16px;
-      display: block;
-      animation: pulse 2s infinite;
+      font-size: 48px; filter: drop-shadow(0 0 20px var(--gold));
+      margin-bottom: 16px; display: block; animation: pulse 2s infinite;
     }
     @keyframes pulse {
       0%,100% { transform: scale(1); filter: drop-shadow(0 0 20px var(--gold)); }
       50% { transform: scale(1.05); filter: drop-shadow(0 0 40px var(--gold)); }
     }
-    .title {
-      font-family: 'Orbitron', monospace;
-      font-size: 22px;
-      color: var(--gold);
-      letter-spacing: 3px;
-      margin-bottom: 8px;
-    }
-    .status-msg {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 13px;
-      color: var(--text-dim);
-      margin-bottom: 32px;
-      min-height: 20px;
-      transition: all 0.3s;
-    }
-    .spinner {
-      width: 48px;
-      height: 48px;
-      border: 3px solid rgba(255,215,0,0.1);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 24px;
-    }
+    .title { font-family: 'Orbitron', monospace; font-size: 22px; color: var(--gold); letter-spacing: 3px; margin-bottom: 8px; }
+    .status-msg { font-family: 'Share Tech Mono', monospace; font-size: 13px; color: var(--text-dim); margin-bottom: 28px; min-height: 20px; }
+    .spinner { width: 44px; height: 44px; border: 3px solid rgba(255,215,0,0.1); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .steps {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-width: 320px;
-      margin: 0 auto;
-    }
+    .steps { display: flex; flex-direction: column; gap: 10px; }
     .step {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 16px;
-      background: rgba(255,215,0,0.03);
-      border: 1px solid rgba(255,215,0,0.08);
-      border-radius: 8px;
-      font-size: 13px;
-      color: var(--text-dim);
-      text-align: left;
-      transition: all 0.4s;
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 8px;
+      font-size: 13px; color: var(--text-dim); text-align: left; transition: all 0.4s;
     }
-    .step.active { color: var(--gold); border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.06); }
-    .step.done { color: var(--success); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); }
-    .step.error { color: var(--danger); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05); }
-    .step-icon { font-size: 16px; flex-shrink: 0; }
+    .step.active { color: var(--gold);    border-color: rgba(255,215,0,0.3);   background: rgba(255,215,0,0.06); }
+    .step.done   { color: var(--success); border-color: rgba(16,185,129,0.3);  background: rgba(16,185,129,0.05); }
+    .step.error  { color: var(--danger);  border-color: rgba(239,68,68,0.3);   background: rgba(239,68,68,0.05); }
+    .step-icon { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; }
     .error-box {
-      display: none;
-      margin-top: 24px;
-      padding: 16px;
-      background: rgba(239,68,68,0.08);
-      border: 1px solid rgba(239,68,68,0.2);
-      border-radius: 10px;
-      font-size: 13px;
-      color: var(--danger);
-      font-family: 'Share Tech Mono', monospace;
-      max-width: 400px;
+      display: none; margin-top: 20px; padding: 14px 16px;
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 10px; font-size: 12px; color: var(--danger);
+      font-family: 'Share Tech Mono', monospace; line-height: 1.6; word-break: break-word;
     }
     .btn-retry {
-      margin-top: 20px;
-      padding: 10px 24px;
-      background: linear-gradient(135deg, #FFD700, #D97706);
-      border: none;
-      border-radius: 8px;
-      font-family: 'Orbitron', monospace;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: #050810;
-      cursor: pointer;
-      display: none;
+      margin-top: 18px; padding: 10px 24px;
+      background: linear-gradient(135deg, #FFD700, #D97706); border: none;
+      border-radius: 8px; font-family: 'Orbitron', monospace; font-size: 11px;
+      font-weight: 700; letter-spacing: 1px; color: #050810; cursor: pointer; display: none;
     }
   </style>
 </head>
@@ -133,114 +79,153 @@
 <div class="auth-box">
   <span class="crown">👑</span>
   <h1 class="title">PRINCE FX</h1>
-  <div class="status-msg" id="statusMsg">Authenticating with Deriv...</div>
+  <div class="status-msg" id="statusMsg">Processing authentication...</div>
   <div class="spinner" id="spinner"></div>
-
   <div class="steps">
     <div class="step active" id="step1"><span class="step-icon">🔐</span> Extracting authorization code</div>
-    <div class="step" id="step2"><span class="step-icon">🔄</span> Exchanging code for access token</div>
-    <div class="step" id="step3"><span class="step-icon">✅</span> Securing session</div>
-    <div class="step" id="step4"><span class="step-icon">🚀</span> Launching dashboard</div>
+    <div class="step"        id="step2"><span class="step-icon">🔄</span> Exchanging code for access token</div>
+    <div class="step"        id="step3"><span class="step-icon">✅</span> Securing session</div>
+    <div class="step"        id="step4"><span class="step-icon">🚀</span> Launching dashboard</div>
   </div>
-
   <div class="error-box" id="errorBox"></div>
   <button class="btn-retry" id="retryBtn" onclick="window.location.href='/'">← Back to Login</button>
 </div>
 
 <script>
-  const steps = ['step1','step2','step3','step4'];
+  const ICONS = ['🔐','🔄','✅','🚀'];
 
-  function setStep(n, state) {
-    const el = document.getElementById(steps[n]);
-    el.className = 'step ' + state;
-    if (state === 'done') el.querySelector('.step-icon').textContent = '✓';
-    if (state === 'error') el.querySelector('.step-icon').textContent = '✗';
+  function setStep(n, st) {
+    const el = document.getElementById('step' + (n + 1));
+    el.className = 'step ' + st;
+    const icon = el.querySelector('.step-icon');
+    icon.textContent = st === 'done' ? '✓' : st === 'error' ? '✗' : ICONS[n];
   }
+  function setMsg(msg) { document.getElementById('statusMsg').textContent = msg; }
+  function delay(ms)   { return new Promise(r => setTimeout(r, ms)); }
 
   function showError(msg) {
     document.getElementById('spinner').style.display = 'none';
     const box = document.getElementById('errorBox');
     box.style.display = 'block';
-    box.textContent = 'Error: ' + msg;
+    box.textContent = msg;
     document.getElementById('retryBtn').style.display = 'inline-block';
-    document.getElementById('statusMsg').textContent = 'Authentication failed.';
+    setMsg('Authentication failed.');
   }
 
-  function setMsg(msg) {
-    document.getElementById('statusMsg').textContent = msg;
+  /* Save token to BOTH storages so dashboard.html always finds it */
+  function saveSession(token, accounts) {
+    sessionStorage.setItem('deriv_token', token);
+    localStorage.setItem('pf_token', token);
+    if (accounts && accounts.length) {
+      const s = JSON.stringify(accounts);
+      sessionStorage.setItem('deriv_accounts', s);
+      localStorage.setItem('pf_accounts', s);
+    }
   }
 
   async function handleCallback() {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const error = params.get('error');
+    const sp = new URLSearchParams(window.location.search);
+    const hp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
 
-    if (error) { setStep(0, 'error'); showError(error + ': ' + params.get('error_description')); return; }
-    if (!code) {
-      // Legacy Deriv OAuth appends token directly
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
-      const token = hashParams.get('token1') || params.get('token1');
-      if (token) {
-        setStep(0, 'done'); setStep(1, 'done'); setStep(2, 'done');
-        setMsg('Token received directly...');
-        sessionStorage.setItem('deriv_token', token);
-        const accounts = [];
-        for (let i = 1; i <= 5; i++) {
-          const t = hashParams.get('token' + i) || params.get('token' + i);
-          const acct = hashParams.get('acct' + i) || params.get('acct' + i);
-          const cur = hashParams.get('cur' + i) || params.get('cur' + i);
-          if (t && acct) accounts.push({ token: t, account: acct, currency: cur });
-        }
-        if (accounts.length) sessionStorage.setItem('deriv_accounts', JSON.stringify(accounts));
-        setStep(3, 'active');
-        setMsg('Launching dashboard...');
-        setTimeout(() => { window.location.href = '/dashboard.html'; }, 800);
-        return;
-      }
+    /* ── Error returned by Deriv ── */
+    if (sp.get('error')) {
       setStep(0, 'error');
-      showError('No authorization code or token received. Please try again.');
+      const desc = sp.get('error_description') || sp.get('error');
+      showError('Deriv error: ' + decodeURIComponent(desc.replace(/\+/g, ' ')));
       return;
     }
 
-    setStep(0, 'done');
-    setStep(1, 'active');
-    setMsg('Exchanging authorization code...');
+    /* ══════════════════════════
+       PATH A — New OAuth2 PKCE
+       URL contains ?code=...
+    ══════════════════════════ */
+    const code = sp.get('code');
+    if (code) {
+      setStep(0, 'done');
+      setStep(1, 'active');
+      setMsg('Exchanging authorization code...');
 
-    const verifier = sessionStorage.getItem('pkce_verifier');
+      /* Retrieve PKCE verifier — stored in BOTH storages for safety */
+      const verifier =
+        sessionStorage.getItem('pkce_verifier') ||
+        localStorage.getItem('pf_pkce_verifier') || '';
 
-    try {
-      const resp = await fetch('/.netlify/functions/exchange-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code,
-          code_verifier: verifier,
-          redirect_uri: 'https://princefx26.netlify.app/callback'
-        })
-      });
+      try {
+        const resp = await fetch('/.netlify/functions/exchange-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            code_verifier: verifier,
+            redirect_uri: window.location.origin + '/callback'
+          })
+        });
 
-      const data = await resp.json();
-      if (!resp.ok || data.error) throw new Error(data.error || 'Token exchange failed');
+        let data = {};
+        try { data = await resp.json(); } catch { /* ignore parse error */ }
 
+        if (resp.ok && data.access_token) {
+          setStep(1, 'done');
+          setStep(2, 'active');
+          setMsg('Securing session...');
+          saveSession(data.access_token, data.accounts || []);
+          await delay(300);
+          setStep(2, 'done');
+          setStep(3, 'active');
+          setMsg('Launching dashboard...');
+          await delay(500);
+          setStep(3, 'done');
+          window.location.replace('/dashboard.html');
+          return;
+        }
+
+        /* Exchange failed */
+        setStep(1, 'error');
+        const errMsg = data.error || data.message || ('HTTP ' + resp.status);
+        showError('Token exchange failed: ' + errMsg + '\n\nMake sure the Netlify Function "exchange-token" is deployed and the CLIENT_SECRET environment variable is set in Netlify.');
+      } catch (err) {
+        setStep(1, 'error');
+        showError('Network error: ' + err.message + '\n\nThe Netlify function may not be deployed yet.');
+      }
+      return;
+    }
+
+    /* ══════════════════════════════════════════════
+       PATH B — Legacy Deriv OAuth
+       URL contains ?acct1=...&token1=... (or hash)
+    ══════════════════════════════════════════════ */
+    const token1 = sp.get('token1') || hp.get('token1');
+    if (token1) {
+      setStep(0, 'done');
       setStep(1, 'done');
       setStep(2, 'active');
-      setMsg('Securing session...');
+      setMsg('Processing account tokens...');
 
-      sessionStorage.setItem('deriv_token', data.access_token);
-      if (data.accounts) sessionStorage.setItem('deriv_accounts', JSON.stringify(data.accounts));
+      const accounts = [];
+      for (let i = 1; i <= 10; i++) {
+        const t    = sp.get('token' + i) || hp.get('token' + i);
+        const acct = sp.get('acct'  + i) || hp.get('acct'  + i);
+        const cur  = sp.get('cur'   + i) || hp.get('cur'   + i);
+        if (t && acct) accounts.push({ token: t, account: acct, currency: cur || '' });
+      }
 
-      await new Promise(r => setTimeout(r, 400));
+      /* Prefer real-money account (non-VR prefix) */
+      const primary = accounts.find(a => !/^(VR|vr)/i.test(a.account)) || accounts[0];
+      saveSession(primary ? primary.token : token1, accounts);
+
+      await delay(300);
       setStep(2, 'done');
       setStep(3, 'active');
       setMsg('Launching dashboard...');
-      await new Promise(r => setTimeout(r, 600));
+      await delay(500);
       setStep(3, 'done');
-
-      window.location.href = '/dashboard.html';
-    } catch (err) {
-      setStep(1, 'error');
-      showError(err.message);
+      window.location.replace('/dashboard.html');
+      return;
     }
+
+    /* ── Nothing usable in the URL ── */
+    setStep(0, 'error');
+    showError('No authorization code or token found.\n\nURL received: ' + window.location.href + '\n\nPlease try logging in again.');
   }
 
   handleCallback();
