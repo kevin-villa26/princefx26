@@ -381,19 +381,19 @@
 
     sessionStorage.setItem('pkce_verifier', verifier);
 
-    // Build URL manually to ensure scope uses %20 (not +) as required by Deriv
-    const state = crypto.randomUUID();
+    // Deriv OAuth2 only accepts 'trade' as the valid scope value
+    const oauthState = crypto.randomUUID();
     const authUrl =
       'https://auth.deriv.com/oauth2/auth' +
       '?response_type=code' +
       '&client_id=32P7P7Js60xbi0ISjpAyK' +
       '&redirect_uri=' + encodeURIComponent('https://princefx26.netlify.app/callback') +
-      '&scope=trade%20account_management' +
-      '&state=' + encodeURIComponent(state) +
+      '&scope=trade' +
+      '&state=' + encodeURIComponent(oauthState) +
       '&code_challenge=' + encodeURIComponent(challenge) +
       '&code_challenge_method=S256';
 
-    sessionStorage.setItem('oauth_state', state);
+    sessionStorage.setItem('oauth_state', oauthState);
     window.location.href = authUrl;
   }
 </script>
