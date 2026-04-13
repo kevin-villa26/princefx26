@@ -3,75 +3,93 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Prince FX — Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <title>Prince FX PRO — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- NAVBAR -->
+<!-- ── NAVBAR ── -->
 <nav class="navbar">
   <div class="nav-logo">
-    <span class="crown-icon">👑</span>
-    <div>
-      <div class="logo-text">PRINCE FX</div>
-      <div class="logo-sub">DIGIT MATCH PREDICTOR PRO</div>
+    <div class="logo-crown">♛</div>
+    <div class="logo-words">
+      <span class="logo-main">PRINCE FX</span>
+      <span class="logo-tag">DIGIT MATCH PREDICTOR PRO</span>
     </div>
   </div>
-  <div class="nav-center">
-    <div class="engine-badge">
-      <span class="badge-dot"></span>
-      NEURAL ENGINE v3.2.1
+
+  <div class="nav-mid">
+    <div class="engine-pill">
+      <span class="ep-dot"></span>
+      <span class="ep-text">NEURAL ENGINE v3.2.1</span>
     </div>
   </div>
+
   <div class="nav-right">
-    <div class="account-info" id="accountInfo">
-      <div class="acct-id" id="acctId">—</div>
-      <div class="acct-bal" id="acctBal">$0.00</div>
+    <div class="user-block" id="userBlock">
+      <div class="user-avatar" id="userAvatar">D</div>
+      <div class="user-details">
+        <div class="user-name"  id="userName">—</div>
+        <div class="user-bal"   id="userBal">$ —</div>
+      </div>
     </div>
-    <button class="btn-logout" onclick="logout()">⏻ LOGOUT</button>
+    <button class="btn-logout" onclick="logout()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      LOGOUT
+    </button>
   </div>
 </nav>
 
-<!-- MAIN LAYOUT -->
+<!-- ── MAIN ── -->
 <main class="dashboard">
 
-  <!-- ENGINE INFO PANEL -->
+  <!-- ENGINE PANEL -->
   <section class="engine-panel">
-    <div class="engine-header">
-      <div class="engine-icon">🧠</div>
+    <div class="engine-left">
+      <div class="engine-icon-wrap">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      </div>
       <div>
-        <div class="engine-title">Engine</div>
-        <div class="engine-desc">AI-powered volatility index analysis system</div>
+        <div class="engine-title">Neural Prediction Engine</div>
+        <div class="engine-sub">AI-powered volatility index analysis system</div>
       </div>
     </div>
-    <p class="engine-body">
-      Our advanced machine learning algorithms analyze real-time market data to predict the last digit of volatility indices. The system processes thousands of data points per second to deliver accurate predictions.
-    </p>
     <div class="engine-stats">
-      <div class="stat-box">
-        <div class="stat-label">Algorithm</div>
-        <div class="stat-val">🔷 Neural Network</div>
+      <div class="estat">
+        <div class="estat-icon">⬡</div>
+        <div>
+          <div class="estat-label">Algorithm</div>
+          <div class="estat-val">Neural Network</div>
+        </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Data Points</div>
-        <div class="stat-val">📈 50K+/sec</div>
+      <div class="estat">
+        <div class="estat-icon">◈</div>
+        <div>
+          <div class="estat-label">Data Points</div>
+          <div class="estat-val">50K+/sec</div>
+        </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Latency</div>
-        <div class="stat-val">⚡ &lt;10ms</div>
+      <div class="estat">
+        <div class="estat-icon">⚡</div>
+        <div>
+          <div class="estat-label">Latency</div>
+          <div class="estat-val">&lt;10ms</div>
+        </div>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Model</div>
-        <div class="stat-val">🧬 v3.2.1</div>
+      <div class="estat">
+        <div class="estat-icon">◉</div>
+        <div>
+          <div class="estat-label">Model</div>
+          <div class="estat-val">v3.2.1</div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ANALYZER GRID -->
-  <section class="analyzers-grid" id="analyzersGrid">
-    <!-- Cards injected by JS -->
-  </section>
+  <!-- ANALYZER CARDS -->
+  <section class="grid" id="analyzersGrid"></section>
 
 </main>
 
