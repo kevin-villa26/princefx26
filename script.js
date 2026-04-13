@@ -1,17 +1,38 @@
 /* ================================================
    PRINCE FX PRO — Neural Digit Match Engine v3.2.1
    ================================================
-   TIMING FLOW (per cycle):
-   ┌─────────────────────────────────────────────┐
-   │  20s → Digit REVEALED  + bar FULL           │
-   │  19s → bar starts emptying, digit shown     │
-   │  ...                                        │
-   │   3s → bot config window starts             │
-   │   2s → bot config window                    │
-   │   1s → bar EMPTY → "Processing algorithm..." │
-   │   0s → new prediction calculated            │
-   │  20s → new digit REVEALED + bar FULL again  │
-   └─────────────────────────────────────────────┘
+
+   EXACT CYCLE FLOW (from your screenshots):
+   ═══════════════════════════════════════════════
+
+   Phase A — PROCESSING (≈1.5s, triggered at cycle boundary):
+     → "Processing algorithm..." displayed
+     → Bar stays at current state briefly
+     → Countdown shows next cycle start (20s)
+
+   Phase B — PREDICTION REVEALED at 20s:
+     → Digit appears with animation
+     → Bar is EMPTY (0%) at 20s
+     → Bar FILLS left→right as countdown ticks DOWN
+     → 20s → 19s → 18s ... → 3s → 2s → 1s
+
+   Phase C — BAR FULL at 1s:
+     → Bar is 100% FULL
+     → ← This is when bot buys the contract (1 tick)
+     → Countdown hits 0 → processing triggers → repeat
+
+   BAR FORMULA:
+     fill% = ((20 - countdown) / 19) × 100
+     At 20s → (0/19)*100 = 0%   (empty)
+     At 12s → (8/19)*100 = 42%  (half)
+     At  1s → (19/19)*100 = 100% (full)
+
+   BOT STRATEGY:
+     20s → See predicted digit → configure bot (digit + index)
+     17s → Bot starts (3 seconds after digit revealed)
+      1s → Bot buys 1-tick contract on predicted digit
+      0s → Result determined by next tick last-digit
+
    ================================================ */
 'use strict';
 
@@ -19,9 +40,10 @@
 const CFG = {
   WS_TICKS:   'wss://ws.derivws.com/websockets/v3?app_id=1089',
   WS_ACCOUNT: 'wss://ws.derivws.com/websockets/v3?app_id=1089',
-  CYCLE:      20,     // total seconds per cycle
-  TICK_BUF:   100,    // ticks kept per index for prediction
-  INIT_MS:    3000,   // "Initializing..." shown for 3s on first login
+  CYCLE:      20,     // seconds per full cycle
+  TICK_BUF:   100,    // ticks buffered per index
+  INIT_MS:    3000,   // "Initializing..." on first login
+  PROC_MS:    1500,   // "Processing algorithm..." duration before digit reveal
   INDICES: [
     { id:'v10', sym:'1HZ10V', name:'Volatility 10 (1s)', cls:'v10', icon:'〜' },
     { id:'v25', sym:'1HZ25V', name:'Volatility 25 (1s)', cls:'v25', icon:'〰' },
@@ -33,11 +55,11 @@ const CFG = {
 // ── STATE ─────────────────────────────────────────
 const ST = {
   token:     null,
-  wsT:       null,   // public tick WebSocket
-  wsA:       null,   // authorized account WebSocket
-  rtimer:    null,   // reconnect timer
-  initDone:  false,  // 3s init phase complete flag
-  analyzers: {},     // symbol → analyzer object
+  wsT:       null,
+  wsA:       null,
+  rtimer:    null,
+  initDone:  false,
+  analyzers: {},
 };
 
 function mkAz(sym) {
@@ -46,8 +68,8 @@ function mkAz(sym) {
     ticks:        [],
     countdown:    CFG.CYCLE,
     timer:        null,
-    pred:         null,    // { digit, confidence }
-    phase:        'init',  // init|predicting|processing
+    pred:         null,
+    phase:        'init',
     cycleStarted: false,
   };
 }
@@ -56,32 +78,28 @@ function mkAz(sym) {
 document.addEventListener('DOMContentLoaded', () => {
   ST.token = sessionStorage.getItem('deriv_token')
           || localStorage.getItem('pf_token');
-
   if (!ST.token) { window.location.replace('/'); return; }
 
   buildUI();
 
-  // Show "Initializing prediction model..." on all cards immediately
+  // All cards show "Initializing prediction model..." on first login
   CFG.INDICES.forEach(i => {
     setBox(i.id, tplInit());
     setCD(i.id, '—');
     setPB(i.id, 0);
   });
 
-  // Connect tick stream (public — no auth needed)
   connectTickWS();
-
-  // Connect account stream (for balance + username)
   connectAccountWS();
 
-  // After INIT_MS, mark init complete and start cycles
+  // After 3s init → start cycles
   setTimeout(() => {
     ST.initDone = true;
     CFG.INDICES.forEach(i => {
       const az = ST.analyzers[i.sym];
       if (az && !az.cycleStarted) {
         az.cycleStarted = true;
-        startCycle(i.sym);
+        runProcessingThenReveal(i.sym);
       }
     });
   }, CFG.INIT_MS);
@@ -115,24 +133,21 @@ function buildUI() {
   });
 }
 
-// ── TICK WEBSOCKET (public ticks) ─────────────────
+// ── WEBSOCKETS ────────────────────────────────────
 function connectTickWS() {
   if (ST.wsT) { try { ST.wsT.close(); } catch {} }
   ST.wsT = new WebSocket(CFG.WS_TICKS);
-
   ST.wsT.onopen = () => {
     CFG.INDICES.forEach(i =>
       ST.wsT.send(JSON.stringify({ ticks: i.sym, subscribe: 1 }))
     );
   };
-
   ST.wsT.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
       if (msg.msg_type === 'tick') onTick(msg.tick);
     } catch {}
   };
-
   ST.wsT.onclose = () => {
     if (ST.rtimer) return;
     ST.rtimer = setTimeout(() => { ST.rtimer = null; connectTickWS(); }, 3000);
@@ -140,7 +155,6 @@ function connectTickWS() {
   ST.wsT.onerror = () => {};
 }
 
-// ── ACCOUNT WEBSOCKET (for username/balance) ──────
 function connectAccountWS() {
   if (ST.wsA) { try { ST.wsA.close(); } catch {} }
   ST.wsA = new WebSocket(CFG.WS_ACCOUNT);
@@ -155,161 +169,131 @@ function connectAccountWS() {
   ST.wsA.onclose = () => {};
 }
 
-// ── ON AUTHORIZED ─────────────────────────────────
 function onAuthorized(auth) {
   const loginid  = auth.loginid  || '—';
   const currency = auth.currency || '';
   const balance  = auth.balance  != null ? parseFloat(auth.balance).toFixed(2) : '—';
-
-  const elName = document.getElementById('userName');
-  const elBal  = document.getElementById('userBal');
-  const elAvtr = document.getElementById('userAvatar');
-  if (elName) elName.textContent = loginid;
-  if (elBal)  elBal.textContent  = currency + ' ' + balance;
-  if (elAvtr) elAvtr.textContent = loginid.charAt(0).toUpperCase();
+  const el = (id) => document.getElementById(id);
+  if (el('userName')) el('userName').textContent = loginid;
+  if (el('userBal'))  el('userBal').textContent  = currency + ' ' + balance;
+  if (el('userAvatar')) el('userAvatar').textContent = loginid.charAt(0).toUpperCase();
 }
 
-// ── ON TICK ───────────────────────────────────────
 function onTick(tick) {
   const az = ST.analyzers[tick.symbol];
   if (!az) return;
-
-  // Extract last digit of price
-  const str   = tick.quote.toFixed(2);
-  const digit = parseInt(str[str.length - 1], 10);
-  az.ticks.push(digit);
+  const str = tick.quote.toFixed(2);
+  az.ticks.push(parseInt(str[str.length - 1], 10));
   if (az.ticks.length > CFG.TICK_BUF) az.ticks.shift();
 
-  // If init phase already done but cycle not yet started, start it now
   if (ST.initDone && !az.cycleStarted) {
     az.cycleStarted = true;
-    startCycle(tick.symbol);
+    runProcessingThenReveal(tick.symbol);
   }
 }
 
 // ══════════════════════════════════════════════════
-//  CYCLE TIMING LOGIC
+//  CYCLE ENGINE
 //
-//  Each cycle = 20 seconds total.
-//
-//  Second 20 (cycle start):
-//    → Prediction digit is REVEALED immediately
-//    → Progress bar is FULL (100%)
-//    → Countdown shows 20s
-//
-//  Seconds 19 → 2:
-//    → Digit stays visible
-//    → Confidence drifts slightly each second
-//    → Progress bar drains left→right (100% → ~5%)
-//    → Countdown ticks down
-//
-//  Second 1 (last second):
-//    → Progress bar hits 0%
-//    → "Processing algorithm..." appears
-//    → New prediction is calculated in background
-//
-//  Next second (back to 20):
-//    → New digit revealed, bar fills to 100%
-//    → Cycle repeats
-//
-//  BOT WINDOW: 3s → 1s = 3-second window to configure your
-//  bot (XML setup) before it executes the trade at second 0.
+//  runProcessingThenReveal(sym):
+//    1. Show "Processing algorithm..." + countdown=20s + bar stays
+//    2. After PROC_MS → reveal predicted digit
+//    3. Start countdown: 20 → 19 → ... → 1
+//       Bar fills left→right: 0% at 20s → 100% at 1s
+//    4. At 1s → bot window (bar is full)
+//    5. At 0 → loop back to step 1
 // ══════════════════════════════════════════════════
-function startCycle(sym) {
+
+function runProcessingThenReveal(sym) {
   const az  = ST.analyzers[sym];
   const idx = CFG.INDICES.find(i => i.sym === sym);
   if (!az || !idx) return;
 
+  // Clear any existing timer
   if (az.timer) { clearInterval(az.timer); az.timer = null; }
 
-  // ── Step 1: Calculate prediction NOW, reveal at 20s ──
-  az.pred      = predict(az.ticks);
-  az.phase     = 'predicting';
+  // ── Step 1: Show "Processing algorithm..." at 20s ──
+  az.phase     = 'processing';
   az.countdown = CFG.CYCLE; // 20
 
-  // Show digit immediately at 20s, bar is FULL
-  renderPred(idx.id, az.pred, true);
+  setBox(idx.id, tplProcessing());
   setCD(idx.id, az.countdown + 's');
-  setPB(idx.id, 100); // bar FULL at 20s
+  setPB(idx.id, 0); // bar starts EMPTY at 20s
 
-  // ── Step 2: Countdown tick every second ──
-  az.timer = setInterval(() => {
-    az.countdown--;
+  // ── Step 2: After PROC_MS reveal prediction ──
+  setTimeout(() => {
+    az.pred  = predict(az.ticks);
+    az.phase = 'predicting';
 
-    if (az.countdown <= 0) {
-      // ── End of cycle: show processing, calc next prediction ──
-      az.phase = 'processing';
-      setBox(idx.id, tplProcessing());
-      setCD(idx.id, CFG.CYCLE + 's');
-      setPB(idx.id, 100); // bar resets to FULL for next cycle
-      az.countdown = CFG.CYCLE;
+    renderPred(idx.id, az.pred, true);
+    setCD(idx.id, az.countdown + 's'); // still showing 20s
+    setPB(idx.id, 0); // still 0% — bar hasn't started filling yet
 
-      // Calculate new prediction then reveal it
-      // Small delay so "Processing algorithm..." is visible briefly
-      setTimeout(() => {
-        az.pred  = predict(az.ticks);
-        az.phase = 'predicting';
-        renderPred(idx.id, az.pred, true);
-        setCD(idx.id, az.countdown + 's');
-        setPB(idx.id, 100);
-      }, 1200);
+    // ── Step 3: Start countdown 20→1 ──
+    az.timer = setInterval(() => {
+      az.countdown--;
 
-      return; // skip the normal countdown update below
-    }
+      if (az.countdown <= 0) {
+        // Cycle complete → restart
+        clearInterval(az.timer);
+        az.timer = null;
+        runProcessingThenReveal(sym);
+        return;
+      }
 
-    // ── Normal tick: update countdown + bar ──
-    setCD(idx.id, az.countdown + 's');
+      // Update countdown display
+      setCD(idx.id, az.countdown + 's');
 
-    // Bar drains from 100% (at 20s) to ~0% (at 1s)
-    // Formula: pct = ((countdown - 1) / (CYCLE - 1)) * 100
-    // At 19s → pct = 18/19 * 100 ≈ 94.7%
-    // At  2s → pct =  1/19 * 100 ≈  5.3%
-    // At  1s → pct =  0/19 * 100 =    0%
-    const pct = ((az.countdown - 1) / (CFG.CYCLE - 1)) * 100;
-    setPB(idx.id, pct);
+      // Bar fills LEFT→RIGHT: 0% at 20s, 100% at 1s
+      // fill = ((CYCLE - countdown) / (CYCLE - 1)) * 100
+      const fill = ((CFG.CYCLE - az.countdown) / (CFG.CYCLE - 1)) * 100;
+      setPB(idx.id, fill);
 
-    // ── Show "Processing algorithm..." at exactly 1s ──
-    if (az.countdown === 1) {
-      az.phase = 'processing';
-      setBox(idx.id, tplProcessing());
-    }
+      // Confidence drifts each second (digits 19→2 visible)
+      if (az.phase === 'predicting' && az.pred && az.countdown > 1) {
+        az.pred.confidence = parseFloat(
+          Math.min(97, Math.max(61,
+            az.pred.confidence + (Math.random() - 0.42) * 2.4
+          )).toFixed(1)
+        );
+        updateConf(idx.id, az.pred.confidence);
+      }
 
-    // ── Live confidence drift (seconds 19 → 2) ──
-    if (az.phase === 'predicting' && az.pred && az.countdown > 1) {
-      az.pred.confidence = parseFloat(
-        Math.min(97, Math.max(61,
-          az.pred.confidence + (Math.random() - 0.42) * 2.4
-        )).toFixed(1)
-      );
-      updateConf(idx.id, az.pred.confidence);
-    }
+    }, 1000);
 
-  }, 1000);
+  }, CFG.PROC_MS);
 }
 
-// ── PREDICTION ALGORITHM ──────────────────────────
-/*
-  ┌─────────────────────────────────────────────────┐
-  │         4-LAYER NEURAL WEIGHTING ENGINE         │
-  ├──────────────┬──────────────────────────────────┤
-  │ Layer 1 (40%)│ Recency Weight                   │
-  │              │ Recent ticks scored exponentially │
-  │              │ higher than older ones            │
-  ├──────────────┼──────────────────────────────────┤
-  │ Layer 2 (25%)│ Momentum Ratio                   │
-  │              │ Last 10 ticks vs last 30 ticks    │
-  │              │ Detects trend in digit frequency  │
-  ├──────────────┼──────────────────────────────────┤
-  │ Layer 3 (20%)│ Anti-Frequency Bias              │
-  │              │ Over-appearing digits penalized   │
-  │              │ Under-appearing digits boosted    │
-  ├──────────────┼──────────────────────────────────┤
-  │ Layer 4 (15%)│ Repetition Gap                   │
-  │              │ Digits absent longest get boost   │
-  │              │ (mean-reversion tendency)         │
-  └──────────────┴──────────────────────────────────┘
-  Output: softmax probability → highest digit + confidence %
-*/
+// ══════════════════════════════════════════════════
+//  4-LAYER NEURAL PREDICTION ALGORITHM
+//
+//  Analyzes last 100 last-digits of tick prices.
+//
+//  Layer 1 — Recency Weight (40%)
+//    Exponential scoring: ticks closer to NOW
+//    are weighted much higher than old ticks.
+//    Formula: score += 1.045^index
+//
+//  Layer 2 — Momentum Ratio (25%)
+//    Compares last 10 ticks vs last 30 ticks.
+//    If digit 7 appeared 4x in last 10 but only
+//    2x/3 in last 30, momentum for 7 is HIGH.
+//    Formula: momentum = freq10 / (freq30/3)
+//
+//  Layer 3 — Anti-Frequency Bias (20%)
+//    Digits appearing MORE than average (10% each)
+//    are penalized. Under-represented digits get
+//    a probability boost. (Mean reversion)
+//    Formula: dev = freq - mean; bias = 1 - dev*0.06
+//
+//  Layer 4 — Repetition Gap Boost (15%)
+//    Digits not seen recently get a small boost.
+//    The longer absent, the higher the boost.
+//    Formula: boost = 1 + min(gap, 15) * 0.012
+//
+//  → All 4 scores combined → softmax → highest = prediction
+//  → Confidence: softmax prob scaled to 61–97% range
+// ══════════════════════════════════════════════════
 function predict(ticks) {
   if (ticks.length < 5) {
     return {
@@ -320,34 +304,34 @@ function predict(ticks) {
 
   const N = ticks.length;
 
-  // L1: exponential recency weight
+  // L1: recency
   const recency = new Array(10).fill(0);
   ticks.forEach((d, i) => { recency[d] += Math.pow(1.045, i); });
 
-  // L2: momentum (last 10 vs last 30)
+  // L2: momentum
   const r10 = new Array(10).fill(0);
   const r30 = new Array(10).fill(0);
   ticks.slice(-10).forEach(d => r10[d]++);
   ticks.slice(-30).forEach(d => r30[d]++);
   const momentum = r10.map((v, d) => v / Math.max(r30[d] / 3, 0.001));
 
-  // L3: anti-frequency bias
-  const freq = new Array(10).fill(0);
+  // L3: anti-bias
+  const freq  = new Array(10).fill(0);
   ticks.forEach(d => freq[d]++);
-  const meanF   = N / 10;
+  const meanF    = N / 10;
   const antiBias = freq.map(f => {
     const dev = f - meanF;
     return dev > 0 ? Math.max(0.08, 1 - dev * 0.06) : 1 + Math.abs(dev) * 0.045;
   });
 
-  // L4: repetition gap boost
+  // L4: gap boost
   const lastSeen = new Array(10).fill(-1);
   ticks.forEach((d, i) => { lastSeen[d] = i; });
   const gapBoost = lastSeen.map(l =>
     1 + Math.min(l === -1 ? N : N - 1 - l, 15) * 0.012
   );
 
-  // Weighted combine
+  // Combine
   const scores = new Array(10).fill(0).map((_, d) =>
     recency[d]  * 0.40 +
     momentum[d] * 3    * 0.25 +
@@ -355,7 +339,7 @@ function predict(ticks) {
     gapBoost[d] * 2    * 0.15
   );
 
-  // Softmax normalization
+  // Softmax
   const maxS = Math.max(...scores);
   const exps  = scores.map(s => Math.exp(s - maxS));
   const sumE  = exps.reduce((a, b) => a + b, 0);
@@ -365,7 +349,6 @@ function predict(ticks) {
   const conf = parseFloat(
     Math.min(97, Math.max(61, 61 + probs[predDigit] * 190)).toFixed(1)
   );
-
   return { digit: predDigit, confidence: conf };
 }
 
@@ -374,25 +357,21 @@ function setBox(id, html) {
   const el = document.getElementById('pbox-' + id);
   if (el) el.innerHTML = html;
 }
-
 function setCD(id, txt) {
   const el = document.getElementById('cd-' + id);
   if (el) el.textContent = txt;
 }
-
-// pct: 0 = empty, 100 = full
+// 0 = bar empty (left), 100 = bar full (right)
 function setPB(id, pct) {
   const el = document.getElementById('pb-' + id);
   if (el) el.style.width = Math.max(0, Math.min(100, pct)) + '%';
 }
-
 function updateConf(id, conf) {
   const val = document.getElementById('cval-' + id);
   const bar = document.getElementById('cbar-' + id);
   if (val) val.textContent = conf + '%';
   if (bar) bar.style.width = conf + '%';
 }
-
 function renderPred(id, pred, animate) {
   setBox(id, `
     <div class="pred-label">↗ PREDICTED DIGIT</div>
@@ -409,14 +388,13 @@ function renderPred(id, pred, animate) {
   `);
 }
 
-// ── HTML TEMPLATES ────────────────────────────────
+// ── TEMPLATES ─────────────────────────────────────
 function tplInit() {
   return `<div class="processing-state">
     <div class="spin-ring"></div>
     <span>Initializing prediction model...</span>
   </div>`;
 }
-
 function tplProcessing() {
   return `<div class="processing-state">
     <div class="spin-ring"></div>
