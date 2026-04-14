@@ -210,6 +210,13 @@ body::before {
 .v75 .conf-bar-fill { background: linear-gradient(90deg,rgba(247,92,92,0.4),var(--c75)); }
 .entry-conf .conf-bar-fill { background: linear-gradient(90deg,rgba(0,210,106,0.4),var(--entry-green)) !important; }
 
+/* Frequency sub-label */
+.pred-sub {
+  font-family: var(--f-mono); font-size: 10px; color: var(--t3);
+  letter-spacing: 0.5px; margin: 4px 0 6px;
+}
+.entry-conf .pred-sub { color: rgba(0,210,106,0.6); }
+
 /* Digit reveal animation */
 @keyframes digitReveal {
   0%   { transform: scale(0.5) translateY(10px); opacity: 0; }
