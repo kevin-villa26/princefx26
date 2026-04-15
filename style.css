@@ -217,6 +217,13 @@ body::before {
 }
 .entry-conf .pred-sub { color: rgba(0,210,106,0.6); }
 
+/* Entry timing hint */
+.entry-hint {
+  font-family: var(--f-mono); font-size: 11px;
+  color: var(--wait-amber); letter-spacing: 0.5px;
+  margin: 2px 0 8px; animation: blink 1.2s ease-in-out infinite;
+}
+
 /* Digit reveal animation */
 @keyframes digitReveal {
   0%   { transform: scale(0.5) translateY(10px); opacity: 0; }
