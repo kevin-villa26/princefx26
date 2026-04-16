@@ -223,6 +223,11 @@ body::before {
   color: var(--wait-amber); letter-spacing: 0.5px;
   margin: 2px 0 8px; animation: blink 1.2s ease-in-out infinite;
 }
+.entry-hint-green {
+  font-family: var(--f-mono); font-size: 12px; font-weight: 700;
+  color: var(--entry-green); letter-spacing: 0.5px;
+  margin: 2px 0 8px; animation: blink 0.7s ease-in-out infinite;
+}
 
 /* Digit reveal animation */
 @keyframes digitReveal {
